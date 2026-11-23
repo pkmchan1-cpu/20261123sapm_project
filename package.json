@@ -1,0 +1,17 @@
+{
+  "name": "used-trade-checker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "중고거래 사기 게시글 판별기",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --env-file=.env dev-server.js"
+  },
+  "dependencies": {
+    "isomorphic-git": "^1.44.18",
+    "openai": "^4"
+  }
+}
