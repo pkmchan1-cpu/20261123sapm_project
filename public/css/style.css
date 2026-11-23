@@ -160,6 +160,86 @@ header {
   font-weight: 600;
 }
 
+/* 사진 첨부 영역 */
+.image-upload-section {
+  margin-bottom: var(--space-4);
+}
+
+.image-upload-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-small);
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
+}
+
+.image-upload-sub {
+  font-size: var(--font-caption);
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.image-dropzone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  text-align: center;
+  background-color: var(--color-bg);
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-dropzone:hover,
+.image-dropzone.is-dragover {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-soft);
+}
+
+#dropzone-text {
+  font-size: var(--font-small);
+  color: var(--color-text-sub);
+}
+
+.image-preview-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#image-preview {
+  max-width: 100%;
+  max-height: 180px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  object-fit: contain;
+}
+
+#remove-image-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 26px;
+  height: 26px;
+  background-color: var(--color-danger);
+  color: #FFFFFF;
+  border: 2px solid #FFFFFF;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
 .sample-section {
   margin-bottom: var(--space-5);
 }
@@ -530,12 +610,13 @@ footer {
 /* 접근성 */
 button:focus-visible,
 textarea:focus-visible,
+.image-dropzone:focus-visible,
 a:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
-/* 7. 반응형 미디어 쿼리 */
+/* 반응형 미디어 쿼리 */
 @media (max-width: 767px) {
   :root {
     --font-title: 22px;

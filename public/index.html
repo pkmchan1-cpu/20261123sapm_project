@@ -12,7 +12,7 @@
     <!-- 헤더 -->
     <header>
       <h1 id="app-title">🛡️ 안심거래 체크</h1>
-      <p class="subtitle">판매글을 붙여넣으면 AI가 사기 위험 신호를 찾아드려요</p>
+      <p class="subtitle">판매글과 상품 사진을 확인하여 AI가 사기 위험 신호를 찾아드려요</p>
     </header>
 
     <!-- 입력 카드 -->
@@ -23,6 +23,23 @@
       <div class="input-meta">
         <p id="privacy-note">전화번호·계좌번호는 자동으로 가려서 분석해요</p>
         <span id="char-count">0 / 2000</span>
+      </div>
+
+      <!-- 사진 첨부 영역 (v2 신규) -->
+      <div class="image-upload-section">
+        <label class="image-upload-label" for="image-input">
+          📷 상품 사진 첨부 (선택)
+          <span class="image-upload-sub">도용 흔적, 워터마크, 합성 여부를 함께 살펴봐요</span>
+        </label>
+        <input type="file" id="image-input" accept="image/png, image/jpeg, image/webp" hidden>
+        
+        <div id="image-dropzone" class="image-dropzone" tabindex="0" role="button">
+          <p id="dropzone-text">여기를 클릭하거나 사진 파일을 끌어다 놓으세요 (최대 5MB)</p>
+          <div id="image-preview-container" class="image-preview-container" hidden>
+            <img id="image-preview" alt="첨부된 사진 미리보기">
+            <button type="button" id="remove-image-btn" aria-label="사진 삭제">✕</button>
+          </div>
+        </div>
       </div>
 
       <div class="sample-section">
@@ -43,7 +60,7 @@
     <!-- 로딩 상태 -->
     <div id="loading" hidden>
       <div class="spinner"></div>
-      <p>판매글을 살펴보는 중이에요...</p>
+      <p>판매글과 사진을 살펴보는 중이에요...</p>
     </div>
 
     <!-- 오류 카드 -->
@@ -88,7 +105,7 @@
 
       <div class="disclaimer-container">
         <p id="disclaimer">
-          AI 판정은 판매글 내용만 보고 판단한 참고 정보이며, 사기 여부를 보장하지 않습니다.<br>
+          AI 판정은 판매글 및 사진 내용만 보고 판단한 참고 정보이며, 사기 여부를 보장하지 않습니다.<br>
           사기 피해가 의심되면 <a href="https://ecrm.police.go.kr" target="_blank" rel="noopener noreferrer">경찰청 사이버범죄 신고시스템(ECRM)</a> 에 신고하거나 112에 연락하세요.
         </p>
       </div>

@@ -8,6 +8,14 @@ const sampleBtns = document.querySelectorAll('.sample-btn');
 const analyzeBtn = document.getElementById('analyze-btn');
 const resetBtn = document.getElementById('reset-btn');
 
+// 이미지 관련 DOM
+const imageInput = document.getElementById('image-input');
+const imageDropzone = document.getElementById('image-dropzone');
+const dropzoneText = document.getElementById('dropzone-text');
+const imagePreviewContainer = document.getElementById('image-preview-container');
+const imagePreview = document.getElementById('image-preview');
+const removeImageBtn = document.getElementById('remove-image-btn');
+
 const loading = document.getElementById('loading');
 const errorSection = document.getElementById('error-section');
 const errorMessage = document.getElementById('error-message');
@@ -24,8 +32,9 @@ const signalList = document.getElementById('signal-list');
 const noSignal = document.getElementById('no-signal');
 const tipsList = document.getElementById('tips-list');
 
-// 분석 진행 중 여부
+// 상태 변수
 let isLoading = false;
+let currentImageData = null; // base64 data url
 
 // 1. 처음 상태 (idle)
 function showIdle() {
@@ -65,7 +74,6 @@ function showResult(data) {
   errorSection.hidden = true;
   resultSection.hidden = false;
 
-  // 배지 설정 (위험, 주의, 안전)
   riskBadge.className = '';
   riskBadge.classList.add(`badge--${data.riskLevel}`);
   if (data.riskLevel === 'danger') {
@@ -76,17 +84,14 @@ function showResult(data) {
     riskBadge.textContent = '✅ 안전';
   }
 
-  // 신뢰도 막대 및 수치 설정
   confidenceValue.textContent = `${data.confidence}%`;
   confidenceBar.setAttribute('aria-valuenow', String(data.confidence));
   confidenceFill.style.width = `${data.confidence}%`;
   confidenceFill.className = '';
   confidenceFill.classList.add(`fill--${data.riskLevel}`);
 
-  // 분석 이유
   reasonText.textContent = data.reason;
 
-  // 위험 신호 목록 (높음 → 보통 → 낮음 순 정렬)
   const severityOrder = { high: 1, medium: 2, low: 3 };
   const sortedSignals = [...(data.signals || [])].sort((a, b) => {
     return (severityOrder[a.severity] || 99) - (severityOrder[b.severity] || 99);
@@ -131,7 +136,6 @@ function showResult(data) {
     });
   }
 
-  // 안전 거래 수칙 채우기
   tipsList.replaceChildren();
   const tips = TIPS[data.riskLevel] || TIPS.safe;
   tips.forEach((tipText) => {
@@ -140,7 +144,6 @@ function showResult(data) {
     tipsList.appendChild(tipLi);
   });
 
-  // 부드럽게 결과 카드로 스크롤 이동
   resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -168,7 +171,7 @@ function showError(code) {
   errorSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// 글자 수 세기 및 업데이트
+// 글자 수 업데이트
 function updateCharCount() {
   const len = postInput.value.length;
   charCount.textContent = `${len} / ${LIMITS.MAX_LENGTH}`;
@@ -179,13 +182,46 @@ function updateCharCount() {
   }
 }
 
-// 분석 요청 메인 함수
+// 이미지 파일 선택 처리
+function handleImageFile(file) {
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    alert('이미지 파일(PNG, JPG, WEBP)만 첨부할 수 있어요.');
+    return;
+  }
+
+  const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+  if (file.size > MAX_SIZE) {
+    alert('이미지 크기는 최대 5MB까지만 가능해요.');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    currentImageData = e.target.result;
+    imagePreview.src = currentImageData;
+    dropzoneText.hidden = true;
+    imagePreviewContainer.hidden = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+// 이미지 제거
+function clearImage() {
+  currentImageData = null;
+  imageInput.value = '';
+  imagePreview.src = '';
+  imagePreviewContainer.hidden = true;
+  dropzoneText.hidden = false;
+}
+
+// 분석 요청
 async function analyzePost() {
   if (isLoading) return;
 
   const text = postInput.value.trim();
 
-  // 클라이언트 사전 검사
   if (text.length === 0) {
     showError('EMPTY_INPUT');
     return;
@@ -208,10 +244,15 @@ async function analyzePost() {
   }, LIMITS.CLIENT_TIMEOUT_MS);
 
   try {
+    const payload = { text };
+    if (currentImageData) {
+      payload.image = currentImageData;
+    }
+
     const res = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify(payload),
       signal: controller.signal,
     });
 
@@ -252,10 +293,48 @@ async function analyzePost() {
 // 이벤트 리스너 등록
 postInput.addEventListener('input', () => {
   updateCharCount();
-  // 사용자가 입력을 수정하기 시작하면 오류 카드를 자동으로 숨김
   if (!errorSection.hidden) {
     errorSection.hidden = true;
   }
+});
+
+// 이미지 드롭존 이벤트
+imageDropzone.addEventListener('click', (e) => {
+  if (e.target === removeImageBtn) return;
+  imageInput.click();
+});
+
+imageDropzone.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    imageInput.click();
+  }
+});
+
+imageInput.addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  handleImageFile(file);
+});
+
+removeImageBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  clearImage();
+});
+
+imageDropzone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  imageDropzone.classList.add('is-dragover');
+});
+
+imageDropzone.addEventListener('dragleave', () => {
+  imageDropzone.classList.remove('is-dragover');
+});
+
+imageDropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  imageDropzone.classList.remove('is-dragover');
+  const file = e.dataTransfer.files?.[0];
+  handleImageFile(file);
 });
 
 sampleBtns.forEach((btn) => {
@@ -276,11 +355,12 @@ retryBtn.addEventListener('click', analyzePost);
 
 resetBtn.addEventListener('click', () => {
   postInput.value = '';
+  clearImage();
   updateCharCount();
   showIdle();
   postInput.focus();
 });
 
-// 초기 상태 세팅
+// 초기화
 showIdle();
 updateCharCount();

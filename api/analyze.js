@@ -20,7 +20,8 @@ async function readJsonBody(req) {
   return new Promise((resolve) => {
     let bodyStr = '';
     let bytesRead = 0;
-    const MAX_BYTES = 10240; // 10KB 초과 방지
+    // 이미지 base64 포함 시 용량이 커질 수 있으므로 7MB로 상향
+    const MAX_BYTES = 7 * 1024 * 1024;
 
     req.on('data', (chunk) => {
       bytesRead += chunk.length;
@@ -47,57 +48,66 @@ async function readJsonBody(req) {
   });
 }
 
-// 판매글을 받아 사기 위험도를 분석하는 핵심 API 핸들러입니다.
+// 판매글 및 사진을 받아 사기 위험도를 분석하는 핵심 API 핸들러입니다.
 export default async function handler(req, res) {
   try {
-    // 1. POST 메서드 검사
     if (req.method !== 'POST') {
       return sendError(res, 'METHOD_NOT_ALLOWED');
     }
 
-    // 2. OpenAI API 키 설정 여부 확인
     if (!process.env.OPENAI_API_KEY) {
       return sendError(res, 'SERVER_CONFIG');
     }
 
-    // 3. 요청 본문 읽기 및 JSON 파싱
     const bodyResult = await readJsonBody(req);
     if (!bodyResult.ok || !bodyResult.data || typeof bodyResult.data !== 'object') {
       return sendError(res, 'INVALID_REQUEST');
     }
 
-    // 4. body.text 문자열 확인
-    const { text } = bodyResult.data;
+    const { text, image } = bodyResult.data;
     if (typeof text !== 'string') {
       return sendError(res, 'INVALID_REQUEST');
     }
 
     const trimmed = text.trim();
 
-    // 5. 빈 입력 검사
     if (trimmed.length === 0) {
       return sendError(res, 'EMPTY_INPUT');
     }
 
-    // 6. 최소 길이 (10자) 검사
     if (trimmed.length < 10) {
       return sendError(res, 'TOO_SHORT');
     }
 
-    // 7. 최대 길이 (2,000자) 검사
     if (trimmed.length > 2000) {
       return sendError(res, 'TOO_LONG');
     }
 
-    // 8. 개인정보 가리기
     const maskedText = maskPersonalInfo(trimmed);
 
-    // 9. OpenAI 호출
+    // OpenAI 클라이언트 초기화
     const client = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
       timeout: Number(process.env.AI_TIMEOUT_MS) || 15000,
       maxRetries: 0,
     });
+
+    // 메시지 구성 (이미지가 있는 경우 Vision 멀티모달 포맷 적용)
+    let userContent;
+    if (typeof image === 'string' && image.startsWith('data:image/')) {
+      userContent = [
+        { type: 'text', text: buildUserMessage(maskedText) },
+        {
+          type: 'image_url',
+          image_url: {
+            url: image,
+            detail: 'low', // 토큰 및 비용 절감
+          },
+        },
+      ];
+    } else {
+      userContent = buildUserMessage(maskedText);
+    }
 
     let completion;
     try {
@@ -105,7 +115,7 @@ export default async function handler(req, res) {
         model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: buildUserMessage(maskedText) },
+          { role: 'user', content: userContent },
         ],
         response_format: {
           type: 'json_schema',
@@ -142,18 +152,15 @@ export default async function handler(req, res) {
       return sendError(res, 'INVALID_AI_RESPONSE');
     }
 
-    // 10. AI 응답 검사 및 정제
     const validated = validateAndSanitizeAiResponse(content);
     if (!validated.valid) {
       return sendError(res, 'INVALID_AI_RESPONSE');
     }
 
-    // 11. 판매글 아님 판별
     if (!validated.isTradePost) {
       return sendError(res, 'NOT_TRADE_POST');
     }
 
-    // 12. 성공 응답 반환
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.end(JSON.stringify({
